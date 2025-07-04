@@ -226,9 +226,28 @@
         function evaluateExpression(expression, variableValues) {
             let expr = expression;
 
-            for (const varName in variableValues) {
-                expr = expr.replace(new RegExp(varName + "(?!')", 'g'), variableValues[varName] === 1 ? 'true' : 'false');
-                expr = expr.replace(new RegExp(varName + "'", 'g'), `!(${variableValues[varName] === 1 ? 'true' : 'false'})`);
+            let previousExpr;
+            do {
+                previousExpr = expr;
+                expr = expr.replace(/\(([^)]+)\)'/g, '!($1)');
+            } while (expr !== previousExpr);
+
+            const allVarForms = [];
+            Array.from(baseVariables).forEach(v => {
+                allVarForms.push(v + "'");
+                allVarForms.push(v);
+            });
+            allVarForms.sort((a, b) => b.length - a.length || b.localeCompare(a)); 
+
+            for (const varForm of allVarForms) {
+                const baseVar = varForm.replace("'", "");
+                const isNegated = varForm.includes("'");
+                
+                if (isNegated) {
+                    expr = expr.replace(new RegExp(varForm, 'g'), `!(${variableValues[baseVar] === 1 ? 'true' : 'false'})`);
+                } else {
+                    expr = expr.replace(new RegExp('\\b' + varForm + '\\b', 'g'), variableValues[baseVar] === 1 ? 'true' : 'false');
+                }
             }
 
             expr = expr.replace(/\+/g, '||'); 
